@@ -35,7 +35,7 @@ enum SOCKET_STATE {
     CONNECTED,
     ERROR,
     CLOSED,
-    STOPED,
+    STOPPED,
 };
 
 class ActiveTCPClient {

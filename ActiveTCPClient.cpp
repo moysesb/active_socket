@@ -203,7 +203,7 @@ string ActiveTCPClient::NextChunk(size_t length) {
 }
 
 void ActiveTCPClient::run_monitor() {
-    while (state != SOCKET_STATE::STOPED) {
+    while (state != SOCKET_STATE::STOPPED) {
         std::unique_lock<std::mutex> lock(cnx_mutex);
         socket_is_connected.wait(lock,
                 [this] {
@@ -235,5 +235,5 @@ void ActiveTCPClient::Stop() {
     if (state != SOCKET_STATE::CLOSED) {
         Close();
     }
-    state = SOCKET_STATE::STOPED;
+    state = SOCKET_STATE::STOPPED;
 }
