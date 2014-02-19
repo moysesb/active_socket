@@ -156,8 +156,8 @@ string ActiveTCPClient::NextLine(size_t maxlen) {
                 [this] {
                     //quando alguém chamar socket_is_connected.notify_all ou 
                     //socket_is_connected.notify_one esse predicado é testado;
-                    //se for verdadeiro o wait é interrompido. se for verdadeiro
-                    //volta a dormir.
+                    //se for verdadeiro o wait é interrompido. se for falso
+                    //continua esperado.
                     return this->is_connected();
                 });
 
@@ -178,17 +178,17 @@ string ActiveTCPClient::NextLine(size_t maxlen) {
         }
     }
 
-    string tmp;
+    string line_str;
     if (partial_line.size() == maxlen) {
-        tmp = partial_line.append("\n");
+        line_str = partial_line.append("\n");
         partial_line.clear();
     } else {
-        tmp = partial_line.substr(0, partial_line.find("\n"));
+        line_str = partial_line.substr(0, partial_line.find("\n"));
         partial_line.assign(partial_line.substr(partial_line.find("\n") + 1));
     }
 
     clear_errors();
-    return tmp;
+    return line_str;
 }
 
 char ActiveTCPClient::NextChar() {
@@ -222,10 +222,9 @@ void ActiveTCPClient::Close() {
 }
 
 bool ActiveTCPClient::Start() {
-    _clientThread = std::thread([this] {
-        this->run_monitor(); });
+    _monitor_thread = std::thread([this] { this->run_monitor(); });
 
-    _clientThread.detach();
+    _monitor_thread.detach();
 
     return true;
 }

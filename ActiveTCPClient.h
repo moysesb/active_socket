@@ -107,7 +107,7 @@ private:
     //Esse campo guarda as leituras parciais antes da chegada do 0xA
     string              partial_line;
     
-    std::thread _clientThread;
+    std::thread _monitor_thread;
     
     
     SOCKET_ERROR last_error;
