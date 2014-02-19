@@ -145,7 +145,7 @@ string ActiveTCPClient::NextLine(size_t maxlen) {
 
     char tmp_buf[32] = {0};
     while (partial_line.find("\n") == string::npos &&
-            partial_line.size() <= maxlen) {
+            partial_line.size() < maxlen) {
 
         //Este lock garante que o NextLine não prossegue no meio de uma tentativa
         //de (re)conexão pela thread de monitoramento
