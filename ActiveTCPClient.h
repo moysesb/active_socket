@@ -13,6 +13,7 @@
 
 #include <string>
 #include <thread>
+#include <condition_variable>
 
 using namespace std;
 
@@ -34,37 +35,98 @@ enum SOCKET_STATE {
     CONNECTED,
     ERROR,
     CLOSED,
+    STOPED,
 };
 
 class ActiveTCPClient {
 public:
-    ActiveTCPClient();
+    // Este é o único construtor público da classe, recebe como parâmetros
+    // o IPv4 e porta do servidor TCP. A conexão não é realizada até que o 
+    // método Start() seja chamado.
     ActiveTCPClient(const string& remote_ip, const uint16_t remote_port);
+    
+    //Um usuário desta classe deve chamar este método logo após o construtor.
+    //Uma thread é criada e iniciada em background. Essa thread monitora o
+    //estado da conexão e reconecta quando há erros de leitura, exceto quando
+    //o estado do cliente é SOCKET_STATE::CLOSED. Neste caso assume-se que o 
+    //cliente suspendeu propositalmente a conexão.
+    bool         Start();
+    
+    //Fecha o socket e muda o estado do cliente para SOCKET_STATE::CLOSED. 
+    //Deve-se chamar este método para fechar a conexão e não tentar
+    //automaticamente a reconxão.
+    virtual void Close();
+    
+    //Fecha o socket e encerra a thread de monitoramento. Deve ser chamada
+    //apenas quando este cliente não for mais ser utilizado.
+    void         Stop();
+    
     virtual ~ActiveTCPClient();
+        
+    //Retorna uma string que representa o estado atual do cliente
+    virtual string GetState() const;
+    
+    //Retorna o último erro gerado pela operação do cliente. Ver possíveis
+    //valores na enum SOCKET_ERROR
+    virtual SOCKET_ERROR GetError() const { return last_error; }
+    
+    //Retorna a próxima linha de texto entregue pelo servidor (incluindo o
+    //caracter 0xA ou '\n' no final). Este método é bloqueante - ele aguarda
+    //tanto pela chegada da mensagem em si quanto pelo estabelecimento da 
+    //conexão TCP. Essa espera contorna o problema de desconexões constantes 
+    //pelo 'outro lado'.
+    virtual string NextLine(size_t maxlen = 255);
+    
+    //Opcionalmente pode ser implementado este método, que retornaria apenas o
+    //próximo caracter ASCII (um byte)
+    virtual char   NextChar();
+    
+    //Opcionalmente pode ser implementado este método, que retornaria um bloco
+    //de texto de um tamanho arbitrário, independente de delimitadores.
+    virtual string NextChunk(size_t length);
+    
 
+private:
+    ActiveTCPClient();
+    ActiveTCPClient(const ActiveTCPClient& orig);
+    
+    //Método privado que executa a tentativa de conexão com o servidor.
+    //Quando a conexão é estabelecida a variável condicional 'socket_is_connected'
+    //é notificada (potencialmente destravando uma chamada a NextLine())
     virtual bool Connect();
     virtual bool Connect(const string& ip, const uint16_t port);
-    virtual void Reset();
     
-    
-    virtual string NextLine(size_t maxlen = 255);
-    virtual char   NextChar();
-    virtual string NextChunk(size_t length);
-    virtual void   Close();
-    
-    void Start();
-    void Stop();
-private:
-    ActiveTCPClient(const ActiveTCPClient& orig);
+    //Ponto de entrada da thread de monitoramento
+    void run_monitor();
     
     SOCKET_STATE        state;
     int                 sockfd;
     string              remote_address;
     short               remote_port;
     
-    string  partial_line;
+    //Esse campo guarda as leituras parciais antes da chegada do 0xA
+    string              partial_line;
+    
+    std::thread _clientThread;
+    
     
     SOCKET_ERROR last_error;
+    
+    //Essas duas variáveis controlam a dança entre o Connect e o NextLine.
+    //Na entrada de NextLine espera-se indefinidamente até que o predicado 
+    //atrelado a essa condiçional esteja 'true' (ver implementação). 
+    //No loop da thread de controle espera-se indefinidamente que o predicado 
+    //seja 'false' (ou seja, que o socket esteja desconectado), então o controle
+    //chama Connect(). No final de Connect, socket_is_connected é sinalizado, e
+    //quem estiver ouvindo (neste caso a NextLine) é avisado de que o valor do
+    //predicado mudou.
+    std::condition_variable socket_is_connected;
+    std::mutex cnx_mutex;
+    
+    //Teste usado para implementar o sistema de sinalização de socket conectado/
+    //desconectado.
+    inline bool is_connected();
+    
     error_t __errno;
     
     inline void clear_errors() { __errno = 0; last_error = SOCKET_ERROR::NO_ERROR; }

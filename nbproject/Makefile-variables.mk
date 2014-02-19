@@ -9,19 +9,19 @@ CND_DISTDIR=dist
 # Debug configuration
 CND_PLATFORM_Debug=GNU-Linux-x86
 CND_ARTIFACT_DIR_Debug=dist/Debug/GNU-Linux-x86
-CND_ARTIFACT_NAME_Debug=socketclient
-CND_ARTIFACT_PATH_Debug=dist/Debug/GNU-Linux-x86/socketclient
+CND_ARTIFACT_NAME_Debug=active_socket
+CND_ARTIFACT_PATH_Debug=dist/Debug/GNU-Linux-x86/active_socket
 CND_PACKAGE_DIR_Debug=dist/Debug/GNU-Linux-x86/package
-CND_PACKAGE_NAME_Debug=socketclient.tar
-CND_PACKAGE_PATH_Debug=dist/Debug/GNU-Linux-x86/package/socketclient.tar
+CND_PACKAGE_NAME_Debug=activesocket.tar
+CND_PACKAGE_PATH_Debug=dist/Debug/GNU-Linux-x86/package/activesocket.tar
 # Release configuration
-CND_PLATFORM_Release=MinGW-Windows
-CND_ARTIFACT_DIR_Release=dist/Release/MinGW-Windows
-CND_ARTIFACT_NAME_Release=socketclient
-CND_ARTIFACT_PATH_Release=dist/Release/MinGW-Windows/socketclient
-CND_PACKAGE_DIR_Release=dist/Release/MinGW-Windows/package
-CND_PACKAGE_NAME_Release=socketclient.tar
-CND_PACKAGE_PATH_Release=dist/Release/MinGW-Windows/package/socketclient.tar
+CND_PLATFORM_Release=GNU-Linux-x86
+CND_ARTIFACT_DIR_Release=dist/Release/GNU-Linux-x86
+CND_ARTIFACT_NAME_Release=active_socket
+CND_ARTIFACT_PATH_Release=dist/Release/GNU-Linux-x86/active_socket
+CND_PACKAGE_DIR_Release=dist/Release/GNU-Linux-x86/package
+CND_PACKAGE_NAME_Release=activesocket.tar
+CND_PACKAGE_PATH_Release=dist/Release/GNU-Linux-x86/package/activesocket.tar
 #
 # include compiler specific variables
 #

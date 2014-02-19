@@ -34,17 +34,25 @@
       <toolsSet>
         <compilerSet>GNU|GNU</compilerSet>
         <dependencyChecking>true</dependencyChecking>
-        <rebuildPropChanged>false</rebuildPropChanged>
+        <rebuildPropChanged>true</rebuildPropChanged>
       </toolsSet>
       <compileType>
         <cTool>
           <architecture>2</architecture>
           <standard>10</standard>
+          <warningLevel>2</warningLevel>
         </cTool>
         <ccTool>
           <architecture>2</architecture>
-          <standard>8</standard>
+          <commandLine>-std=c++0x</commandLine>
+          <warningLevel>2</warningLevel>
         </ccTool>
+        <linkerTool>
+          <linkerLibItems>
+            <linkerLibStdlibItem>PosixThreads</linkerLibStdlibItem>
+          </linkerLibItems>
+          <commandLine>-std=c++0x</commandLine>
+        </linkerTool>
       </compileType>
       <item path="ActiveTCPClient.cpp" ex="false" tool="1" flavor2="0">
       </item>

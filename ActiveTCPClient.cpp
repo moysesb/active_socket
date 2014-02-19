@@ -15,6 +15,8 @@
 #include <netinet/in.h>
 #include <netdb.h>
 
+#include <iostream>
+
 
 static const char* state_names[] = {
     "UNKNOWN",
@@ -29,8 +31,7 @@ state(UNKNOWN),
 sockfd(0),
 remote_address("localhost"),
 remote_port(DEFAULT_SERVER_PORT),
-last_error(NO_ERROR)
-{
+last_error(NO_ERROR) {
 }
 
 ActiveTCPClient::ActiveTCPClient(const string& remote_ip,
@@ -39,30 +40,33 @@ state(CONFIGURED),
 sockfd(0),
 remote_address(remote_ip),
 remote_port(remote_port),
-last_error(NO_ERROR)
-{
+last_error(NO_ERROR) {
 
 }
 
-bool ActiveTCPClient::Connect(const string& ip, const uint16_t port)
-{
+bool ActiveTCPClient::Connect(const string& ip, const uint16_t port) {
     state = CONFIGURED;
     remote_address.assign(ip);
     remote_port = port;
     return this->Connect();
 }
 
-bool ActiveTCPClient::Connect()
-{
-    if (state != CONFIGURED ||
-            remote_address.empty() || remote_port == 0) {
+string ActiveTCPClient::GetState() const {
+
+    return state_names[state];
+}
+
+bool ActiveTCPClient::Connect() {
+
+    //Será que o remote_address é um endereço IPv4 válido?
+    //Aqui eu não me preocupo com isso...
+    if (remote_address.empty() || remote_port == 0) {
         last_error = SOCKET_ERROR::PARAMETER_ERROR;
         return false;
     }
 
-    if (state == CONNECTED) {
-        last_error = SOCKET_ERROR::BUSY;
-        return false;
+    if (state == CONNECTED || sockfd > 0) {
+        Close();
     }
     int err = 0;
 
@@ -73,6 +77,8 @@ bool ActiveTCPClient::Connect()
         return false;
     }
 
+    //Eu prefiro usar getaddrinfo para instanciar um sockaddr*
+    //principalmente por que nao preciso me preocupar com DNS.
     struct addrinfo hint_info = {0};
     hint_info.ai_family = AF_INET;
     hint_info.ai_protocol = IPPROTO_TCP;
@@ -84,96 +90,150 @@ bool ActiveTCPClient::Connect()
             port_str.c_str(),
             &hint_info, &srv_info);
 
-    if (srv_info->ai_addr == NULL) {
+    if (err || srv_info->ai_addr == NULL) {
         //log "ERROR, no such host;
         state = SOCKET_STATE::ERROR;
+        __errno = err;
         last_error = SOCKET_ERROR::NETWORK_ERROR;
         return false;
     }
+    //O bloco a seguir configura o reuso do ip e porta para reconexões
+    {
+        int yes = 1;
+        if (setsockopt(sockfd, SOL_SOCKET, SO_REUSEADDR, &yes, sizeof (int)) == -1) {
+            state = SOCKET_STATE::ERROR;
+            __errno = err;
+            last_error = SOCKET_ERROR::NETWORK_ERROR;
+            return false;
+        }
+        if (setsockopt(sockfd, SOL_SOCKET, SO_REUSEPORT, &yes, sizeof (int)) == -1) {
+            state = SOCKET_STATE::ERROR;
+            __errno = err;
+            last_error = SOCKET_ERROR::NETWORK_ERROR;
+            return false;
+        }
+    }
+
     if (connect(sockfd, srv_info->ai_addr, srv_info->ai_addrlen) < 0) {
-        //log "ERROR connecting";
+        cout << "ERROR connecting: " << strerror(errno) << "\n";
         state = SOCKET_STATE::ERROR;
         last_error = SOCKET_ERROR::NETWORK_ERROR;
         __errno = errno;
+        return false;
     }
     state = SOCKET_STATE::CONNECTED;
     last_error = SOCKET_ERROR::NO_ERROR;
+
+    //Se houver uma chamada bloqueada em NextLine() neste momento, ela vai acordar.
+    socket_is_connected.notify_all();
     return true;
 }
 
-ActiveTCPClient::ActiveTCPClient(const ActiveTCPClient& orig)
-{
+ActiveTCPClient::ActiveTCPClient(const ActiveTCPClient& orig) {
     //empty by design
 }
 
-ActiveTCPClient::~ActiveTCPClient()
-{
-    if (sockfd > 0) {
-        close(sockfd);
-    }
+ActiveTCPClient::~ActiveTCPClient() {
+    Close();
 }
 
-string ActiveTCPClient::NextLine(size_t maxlen)
-{
-    if (state != SOCKET_STATE::CONNECTED || sockfd <= 0) {
-        last_error = IO_ERROR;
-        return "";
-    }
+bool ActiveTCPClient::is_connected() {
+    return sockfd > 0 && state == SOCKET_STATE::CONNECTED;
+}
+
+string ActiveTCPClient::NextLine(size_t maxlen) {
+
     char tmp_buf[32] = {0};
-    while (partial_line.find("\n") == string::npos && 
+    while (partial_line.find("\n") == string::npos &&
             partial_line.size() <= maxlen) {
+
+        //Este lock garante que o NextLine não prossegue no meio de uma tentativa
+        //de (re)conexão pela thread de monitoramento
+        std::unique_lock<std::mutex> lock(cnx_mutex);
+
+        //cout << "NextLine() foi chamada mas o socket está desconectado...\n";
+        socket_is_connected.wait(lock,
+                [this] {
+                    //quando alguém chamar socket_is_connected.notify_all ou 
+                    //socket_is_connected.notify_one esse predicado é testado;
+                    //se for verdadeiro o wait é interrompido. se for verdadeiro
+                    //volta a dormir.
+                    return this->is_connected();
+                });
+
         int len = recv(sockfd, tmp_buf, 32, 0);
         if (len <= 0) {
             __errno = errno;
-            last_error = SOCKET_ERROR::IO_ERROR;            
-            return "";
+            last_error = SOCKET_ERROR::IO_ERROR;
+            Close();
+            socket_is_connected.notify_all(); //avisa a thread de controle
+            
+            continue;   //vai voltar ao socket_is_connected.wait() ali em cima.
+                        //(outra opção seria retornar o que já foi recebido em
+                        // partial_line e deixar quem chamou NextLine decidir se
+                        // quer continuar tentando ou não)
         } else {
             tmp_buf[len] = '\0';
             partial_line.append(tmp_buf);
         }
     }
-    
+
     string tmp;
-    if(partial_line.size() == maxlen) {
+    if (partial_line.size() == maxlen) {
         tmp = partial_line.append("\n");
-        partial_line.clear();        
+        partial_line.clear();
     } else {
         tmp = partial_line.substr(0, partial_line.find("\n"));
         partial_line.assign(partial_line.substr(partial_line.find("\n") + 1));
     }
-    
+
     clear_errors();
     return tmp;
 }
 
-char ActiveTCPClient::NextChar()
-{
+char ActiveTCPClient::NextChar() {
 
     return '\0';
 }
 
-string ActiveTCPClient::NextChunk(size_t length)
-{
+string ActiveTCPClient::NextChunk(size_t length) {
 
     return "";
 }
 
-void ActiveTCPClient::Close()
-{
-
+void ActiveTCPClient::run_monitor() {
+    while (state != SOCKET_STATE::STOPED) {
+        std::unique_lock<std::mutex> lock(cnx_mutex);
+        socket_is_connected.wait(lock,
+                [this] {
+                    return this->is_connected() == false;
+                });
+        Connect();
+        sleep(3);
+    }
 }
 
-void ActiveTCPClient::Start()
-{
-
+void ActiveTCPClient::Close() {
+    if (shutdown(sockfd, SHUT_RDWR) == 0) {
+        close(sockfd);
+    }
+    sockfd = -1;
+    state = SOCKET_STATE::CLOSED;
 }
 
-void ActiveTCPClient::Reset() 
-{
-    
+bool ActiveTCPClient::Start() {
+    _clientThread = std::thread([this] {
+        this->run_monitor(); });
+
+    _clientThread.detach();
+
+    return true;
 }
 
-void ActiveTCPClient::Stop()
-{
+void ActiveTCPClient::Stop() {
 
+    if (state != SOCKET_STATE::CLOSED) {
+        Close();
+    }
+    state = SOCKET_STATE::STOPED;
 }

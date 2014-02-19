@@ -7,6 +7,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <unistd.h>
+#include <signal.h>
 #include <string.h>
 #include <sys/types.h>
 #include <sys/socket.h>
@@ -25,30 +26,40 @@ void error(const char *msg)
     exit(0);
 }
 
+static bool running = true;
+
+static void ctrlc_handler(int sig)
+{
+    cout << "Saindo...\n";
+    running = false;
+}
+
 /*
  * 
  */
 int main(int argc, char** argv)
 {
+    signal(SIGINT, ctrlc_handler);
+    signal(SIGTERM, ctrlc_handler);
 
-    ActiveTCPClient tcpClient("192.168.1.16", 7020);
+    ActiveTCPClient tcpClient("192.168.0.198", 7000);
     bool ret = false;
-    ret = tcpClient.Connect();
+    ret = tcpClient.Start();
 
     if (ret == false) {
         cerr << " Nao deu " << endl;
+        exit(1);
     }
 
-    string line = tcpClient.NextLine();
-    while (line.compare("") != 0) {
+    while (running) {
+        string line = tcpClient.NextLine();
         std::cout << line << std::endl;
         std::cout << "..." << std::endl;
-        sleep(1);
-        line = tcpClient.NextLine();
     }
 
+    cout << "Fechando o cliente TCP...";
     tcpClient.Close();
-
+    cout << "ok\n";
     return 0;
 }
 

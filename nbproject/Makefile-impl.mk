@@ -24,7 +24,7 @@ CLEAN_SUBPROJECTS=${CLEAN_SUBPROJECTS_${SUBPROJECTS}}
 
 
 # Project Name
-PROJECTNAME=SocketClient
+PROJECTNAME=active_socket
 
 # Active Configuration
 DEFAULTCONF=Debug
