@@ -15,6 +15,8 @@
 
 #include <cstdlib>
 #include <iostream>
+
+#include "ActiveTCPClient.h"
 using namespace std;
 
 void error(const char *msg)
@@ -28,35 +30,25 @@ void error(const char *msg)
  */
 int main(int argc, char** argv)
 {
-    int sockfd, portno, n;
 
-    char buffer[256];
+    ActiveTCPClient tcpClient("192.168.1.16", 7020);
+    bool ret = false;
+    ret = tcpClient.Connect();
 
-    sockfd = socket(AF_INET, SOCK_STREAM, 0);
-    if (sockfd < 0)
-        error("ERROR opening socket");
-    
-    struct addrinfo hint_info = {0};
-    hint_info.ai_family = AF_INET;
-    hint_info.ai_protocol = IPPROTO_TCP;
-    hint_info.ai_flags = AI_NUMERICHOST | AI_NUMERICSERV;
-    
-    struct addrinfo* srv_info; 
-    n = getaddrinfo("192.168.1.16", "7000", &hint_info, &srv_info);
-    
-    if (srv_info->ai_addr == NULL) {
-        fprintf(stderr, "ERROR, no such host\n");
-        exit(0);
+    if (ret == false) {
+        cerr << " Nao deu " << endl;
     }
-    if (connect(sockfd, srv_info->ai_addr, srv_info->ai_addrlen) < 0)
-        error("ERROR connecting");
-    
-    n  = recv(sockfd, buffer, 256, 0);
-    
-    sleep(2);
-    buffer[n] = '\0';
-    std::cout << (const char*) buffer << std::endl;
-    close(sockfd);
+
+    string line = tcpClient.NextLine();
+    while (line.compare("") != 0) {
+        std::cout << line << std::endl;
+        std::cout << "..." << std::endl;
+        sleep(1);
+        line = tcpClient.NextLine();
+    }
+
+    tcpClient.Close();
+
     return 0;
 }
 

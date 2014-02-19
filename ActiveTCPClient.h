@@ -23,7 +23,9 @@ enum SOCKET_ERROR {
     NOT_CONFIGURED,
     BUSY,
     IO_ERROR,
+    NETWORK_ERROR,
     CONNECTION_REFUSED,
+    PARAMETER_ERROR,
     MEMORY_ERROR,
 };
 enum SOCKET_STATE {
@@ -40,18 +42,18 @@ public:
     ActiveTCPClient(const string& remote_ip, const uint16_t remote_port);
     virtual ~ActiveTCPClient();
 
-    virtual bool connect();
-    virtual bool connect(const string& ip, const uint16_t port);
-    virtual void reset();
+    virtual bool Connect();
+    virtual bool Connect(const string& ip, const uint16_t port);
+    virtual void Reset();
     
     
-    virtual string next_line(size_t maxlen = 255);
-    virtual char   next_char();
-    virtual string next_chunk(size_t length);
-    virtual void   close();
+    virtual string NextLine(size_t maxlen = 255);
+    virtual char   NextChar();
+    virtual string NextChunk(size_t length);
+    virtual void   Close();
     
-    void start();
-    void stop();
+    void Start();
+    void Stop();
 private:
     ActiveTCPClient(const ActiveTCPClient& orig);
     
@@ -60,9 +62,12 @@ private:
     string              remote_address;
     short               remote_port;
     
-    string partial_line;
+    string  partial_line;
     
     SOCKET_ERROR last_error;
+    error_t __errno;
+    
+    inline void clear_errors() { __errno = 0; last_error = SOCKET_ERROR::NO_ERROR; }
 };
 
 #endif	/* ACTIVETCPCLIENT_H */
