@@ -100,13 +100,15 @@ bool ActiveTCPClient::Connect() {
     //O bloco a seguir configura o reuso do ip e porta para reconexões
     {
         int yes = 1;
-        if (setsockopt(sockfd, SOL_SOCKET, SO_REUSEADDR, &yes, sizeof (int)) == -1) {
+        if (setsockopt(sockfd, SOL_SOCKET, SO_REUSEADDR, 
+                                &yes, sizeof (int)) == -1) {
             state = SOCKET_STATE::ERROR;
             __errno = err;
             last_error = SOCKET_ERROR::NETWORK_ERROR;
             return false;
         }
-        if (setsockopt(sockfd, SOL_SOCKET, SO_REUSEPORT, &yes, sizeof (int)) == -1) {
+        if (setsockopt(sockfd, SOL_SOCKET, SO_REUSEPORT, 
+                                &yes, sizeof (int)) == -1) {
             state = SOCKET_STATE::ERROR;
             __errno = err;
             last_error = SOCKET_ERROR::NETWORK_ERROR;
@@ -115,7 +117,6 @@ bool ActiveTCPClient::Connect() {
     }
 
     if (connect(sockfd, srv_info->ai_addr, srv_info->ai_addrlen) < 0) {
-        cout << "ERROR connecting: " << strerror(errno) << "\n";
         state = SOCKET_STATE::ERROR;
         last_error = SOCKET_ERROR::NETWORK_ERROR;
         __errno = errno;

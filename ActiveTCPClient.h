@@ -87,7 +87,14 @@ public:
     
 
 private:
+    //Este construtor é privado então não se pode instanciar esta classe sem
+    //informar IP e porta do servidor, mas note que a implementação desse
+    //construtor está usando valores padrão (ip: locallhost e porta 7000). 
+    //Talvez seja conveniente tornar este construtor público e construir uma 
+    //instância usando esses valores padrão.
     ActiveTCPClient();
+    
+    //Construtor de cópia é privado mesmo
     ActiveTCPClient(const ActiveTCPClient& orig);
     
     //Método privado que executa a tentativa de conexão com o servidor.
