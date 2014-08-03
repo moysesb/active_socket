@@ -5,16 +5,9 @@
  * Created on February 17, 2014, 9:22 PM
  */
 #include <stdio.h>
-#include <stdlib.h>
-#include <unistd.h>
 #include <signal.h>
 #include <string.h>
-#include <sys/types.h>
-#include <sys/socket.h>
-#include <netinet/in.h>
-#include <netdb.h>
 
-#include <cstdlib>
 #include <iostream>
 
 #include "ActiveTCPClient.h"
